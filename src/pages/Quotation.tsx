@@ -13,6 +13,7 @@ import {
   Minus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { showSuccess, showError, showWarning } from '../utils/sweetalert';
 
 // =============================================
 // TYPES
@@ -122,24 +123,33 @@ function QuotationPage() {
         [id]: checked,
       });
     } else {
+      let finalValue = value;
+      if (id === 'number') {
+        finalValue = value.replace(/\D/g, '').slice(0, 10);
+      }
       setFormData({
         ...formData,
-        [id]: value,
+        [id]: finalValue,
       });
     }
   };
 
   const validateStep1 = () => {
     if (!formData.name.trim()) {
-      alert("Please enter customer name");
+      showWarning('Missing Info', 'Please enter customer name');
       return false;
     }
     if (!formData.priceType) {
-      alert("Please select price type");
+      showWarning('Missing Info', 'Please select price type');
+      return false;
+    }
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(formData.number)) {
+      showWarning('Invalid Phone Number', 'Please enter a valid 10-digit phone number');
       return false;
     }
     if (!formData.date) {
-      alert("Please select date");
+      showWarning('Missing Info', 'Please select date');
       return false;
     }
     return true;
@@ -153,7 +163,7 @@ function QuotationPage() {
 
   const handleAddItem = (item: Item) => {
     if (selectedItems.find((si) => si._id === item._id)) {
-      alert("This item is already added.");
+      showWarning('Duplicate', 'This item is already added.');
       return;
     }
 
@@ -213,7 +223,7 @@ function QuotationPage() {
 
   const handleCreateQuotation = async () => {
     if (selectedItems.length === 0) {
-      alert("Please add at least one item to continue");
+      showWarning('No Items', 'Please add at least one item to continue');
       return;
     }
 
@@ -258,7 +268,7 @@ function QuotationPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setError(errorMessage);
-      alert(`Failed to create quotation: ${errorMessage}`);
+      showError('Creation Failed', `Failed to create quotation: ${errorMessage}`);
     } finally {
       setLoading(false);
     }

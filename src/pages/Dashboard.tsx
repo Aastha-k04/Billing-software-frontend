@@ -1477,6 +1477,7 @@ import {
   CreditCard
 } from "lucide-react";
 import html2pdf from "html2pdf.js";
+import { showSuccess, showError, showWarning } from '../utils/sweetalert';
 
 // Get user from localStorage or use null
 const getUserFromStorage = () => {
@@ -1670,7 +1671,7 @@ function Dashboard() {
 
   const applyCustomDateFilter = () => {
     if (!fromDate || !toDate) {
-      alert("Please select both dates");
+      showWarning('Missing Dates', 'Please select both dates');
       return;
     }
 
@@ -1679,7 +1680,7 @@ function Dashboard() {
     to.setHours(23, 59, 59, 999);
 
     if (from > to) {
-      alert("From date cannot be after To date");
+      showError('Invalid Range', 'From date cannot be after To date');
       return;
     }
 
@@ -1731,13 +1732,13 @@ function Dashboard() {
       if (response.ok && data.success) {
         setAllProducts((prev: any) => prev.filter((p: any) => p._id !== selectedProduct._id));
         setFilteredProducts((prev: any) => prev.filter((p: any) => p._id !== selectedProduct._id));
-        alert("✅ Quotation deleted successfully");
+        showSuccess('Deleted', 'Quotation deleted successfully');
       } else {
         throw new Error(data.message || "Failed to delete quotation");
       }
     } catch (err: any) {
       console.error("❌ Error deleting quotation:", err);
-      alert(`Failed to delete: ${err.message}`);
+      showError('Delete Failed', `Failed to delete: ${err.message}`);
     } finally {
       setLoading(false);
       setShowDeleteModal(false);
@@ -1812,16 +1813,24 @@ function Dashboard() {
   };
 
   const handleEditFormChange = (field: any, value: any) => {
+    let finalValue = value;
+    if (field === 'number') {
+      finalValue = value.replace(/\D/g, '').slice(0, 10);
+    }
     setEditFormData((prev: any) => ({
       ...prev,
-      [field]: value
+      [field]: finalValue
     }));
   };
 
   const handleCreateFormChange = (field: any, value: any) => {
+    let finalValue = value;
+    if (field === 'number') {
+      finalValue = value.replace(/\D/g, '').slice(0, 10);
+    }
     setCreateFormData((prev: any) => ({
       ...prev,
-      [field]: value
+      [field]: finalValue
     }));
   };
 
@@ -1849,7 +1858,7 @@ function Dashboard() {
     );
 
     if (isItemAlreadyAdded) {
-      alert("This item is already added to the quotation. Please update the quantity instead.");
+      showWarning('Duplicate Item', 'This item is already added to the quotation. Please update the quantity instead.');
       return;
     }
 
@@ -1915,12 +1924,18 @@ function Dashboard() {
     if (!selectedProduct || !editFormData) return;
 
     if (!editFormData.name || !editFormData.number) {
-      alert("Please fill in customer name and phone number");
+      showWarning('Required Fields', 'Please fill in customer name and phone number');
+      return;
+    }
+
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(editFormData.number)) {
+      showWarning('Invalid Phone Number', 'Please enter a valid 10-digit phone number');
       return;
     }
 
     if (editFormData.items.length === 0) {
-      alert("Please add at least one item");
+      showWarning('Empty Quotation', 'Please add at least one item');
       return;
     }
 
@@ -1952,7 +1967,7 @@ function Dashboard() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        alert("✅ Quotation updated successfully");
+        showSuccess('Updated', 'Quotation updated successfully');
         fetchProducts();
         setShowEditModal(false);
         setSelectedProduct(null);
@@ -1962,7 +1977,7 @@ function Dashboard() {
       }
     } catch (err: any) {
       console.error("❌ Error updating quotation:", err);
-      alert(`Failed to update: ${err.message}`);
+      showError('Update Failed', `Failed to update: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -2088,12 +2103,18 @@ function Dashboard() {
 
   const confirmCreate = async () => {
     if (!createFormData.name || !createFormData.number) {
-      alert("Please fill in customer name and phone number");
+      showWarning('Required Fields', 'Please fill in customer name and phone number');
+      return;
+    }
+
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(createFormData.number)) {
+      showWarning('Invalid Phone Number', 'Please enter a valid 10-digit phone number');
       return;
     }
 
     if (createFormData.items.length === 0) {
-      alert("Please add at least one item");
+      showWarning('Empty Quotation', 'Please add at least one item');
       return;
     }
 
@@ -2125,7 +2146,7 @@ function Dashboard() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        alert("✅ Quotation created successfully");
+        showSuccess('Success', 'Quotation created successfully');
         fetchProducts();
         setShowCreateModal(false);
         setCreateFormData({
@@ -2143,7 +2164,7 @@ function Dashboard() {
       }
     } catch (err: any) {
       console.error("❌ Error creating quotation:", err);
-      alert(`Failed to create: ${err.message}`);
+      showError('Creation Failed', `Failed to create: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -3043,6 +3064,15 @@ function Dashboard() {
       if (!response.ok) throw new Error('Failed to download PDF');
 
       const blob = await response.blob();
+      console.log('[PDF] Blob received. Size:', blob.size, 'Type:', blob.type);
+
+      if (blob.type !== 'application/pdf') {
+        console.error('[PDF] Received invalid content type:', blob.type);
+        const text = await blob.text();
+        console.error('[PDF] Response snippet:', text.slice(0, 100));
+        throw new Error('Received invalid PDF format from server');
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -3054,7 +3084,7 @@ function Dashboard() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('PDF download error:', error);
-      alert('Failed to download PDF. Please try again.');
+      showError('Download Failed', 'Failed to synchronize and download PDF resource. Please try again.');
     }
   };
 
@@ -4472,10 +4502,10 @@ function Dashboard() {
             <input
               type="number"
               value={formData.dis}
-              onChange={(e) => handleFormChange('dis', parseFloat(e.target.value) || 0)}
+              onChange={(e) => handleFormChange('dis', parseInt(e.target.value) || 0)}
               min="0"
               max="100"
-              step="0.1"
+              step="1"
               className="input-premium"
             />
           </div>
@@ -4643,9 +4673,9 @@ function Dashboard() {
 
               <button
                 onClick={handleCreateClick}
-                className="btn-premium-primary px-4 py-2.5 text-sm"
+                className="btn-premium-primary flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-premium-amber-500/20"
               >
-                <Plus size={18} />
+                <Plus size={16} />
                 <span>New Quotation</span>
               </button>
 
@@ -4684,7 +4714,7 @@ function Dashboard() {
                 </div>
                 <button
                   onClick={applyCustomDateFilter}
-                  className="btn-premium-primary px-6 py-2.5 text-sm"
+                  className="btn-premium-primary px-6 py-2.5 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-premium-amber-500/20"
                 >
                   Apply Filters
                 </button>

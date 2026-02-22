@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   PlusCircle,
+  Plus,
   Trash2,
   Upload,
   X,
@@ -20,6 +21,7 @@ import {
   Star
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { showSuccess, showError, showConfirm, showWarning } from '../utils/sweetalert';
 
 // =============================================
 // TYPES
@@ -118,11 +120,11 @@ function ItemsPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Invalid format. Please select an image.');
+        showError('Invalid Format', 'Invalid format. Please select an image.');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        alert('Exceeds 5MB payload limit.');
+        showError('File Too Large', 'Exceeds 5MB payload limit.');
         return;
       }
       setForm((prev) => ({ ...prev, image: file }));
@@ -138,7 +140,10 @@ function ItemsPage() {
   };
 
   const handleAddItem = async (): Promise<void> => {
-    if (!form.name || !form.description || !form.nrp || !form.mrp) return;
+    if (!form.name || !form.description || !form.nrp || !form.mrp) {
+      showWarning('Incomplete Entry', 'Please ensure all catalog fields are populated before registration');
+      return;
+    }
     setLoading(true);
     try {
       const formData = new FormData();
@@ -156,9 +161,10 @@ function ItemsPage() {
       if (!response.ok) throw new Error("Transaction commit failed");
       const data = await response.json();
       setItems([data.item || data, ...items]);
+      showSuccess('Item Created', 'New catalog entry registered successfully');
       resetForm();
     } catch (err) {
-      setError("Failed to register new item.");
+      showError('Registration Failed', 'Failed to commit new item to matrix');
     } finally {
       setLoading(false);
     }
@@ -187,7 +193,10 @@ function ItemsPage() {
   };
 
   const handleUpdateItem = async (): Promise<void> => {
-    if (!editingId || !form.name || !form.description || !form.nrp || !form.mrp) return;
+    if (!editingId || !form.name || !form.description || !form.nrp || !form.mrp) {
+      showWarning('Update Blocked', 'Critical fields missing. Synchronization aborted.');
+      return;
+    }
     setLoading(true);
     try {
       const formData = new FormData();
@@ -205,23 +214,32 @@ function ItemsPage() {
       if (!response.ok) throw new Error("Update synchronization failed");
       const data = await response.json();
       setItems(items.map(item => item._id === editingId ? (data.item || data) : item));
+      showSuccess('Update Complete', 'Item synchronization successful');
       resetForm();
     } catch (err) {
-      setError("Critical update error.");
+      showError('Update Failed', 'Critical synchronization error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string): Promise<void> => {
-    if (!window.confirm("Permanently archive this asset?")) return;
+    const result = await showConfirm(
+      "Archive Asset?",
+      "Permanently de-authorize this item from catalog? This operation is irreversible.",
+      "Purge Asset"
+    );
+
+    if (!result.isConfirmed) return;
+
     setLoading(true);
     try {
       const response = await fetch(API_ROUTES.DELETE_ITEM(id), { method: "DELETE" });
       if (!response.ok) throw new Error("Archive operation denied");
       setItems(items.filter((item) => item._id !== id));
+      showSuccess('Asset Purged', 'Item successfully removed from matrix');
     } catch (err) {
-      setError("Resource deletion failure.");
+      showError('Deletion Failed', 'Resource deletion failure. Integrity lock active.');
     } finally {
       setLoading(false);
     }
@@ -245,15 +263,15 @@ function ItemsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Review submitted successfully!");
+        showSuccess('Success', 'Review submitted successfully!');
         setShowReviewModal(false);
         setReviewComment("");
         setReviewRating(5);
       } else {
-        alert(data.message || "Failed to submit review");
+        showError('Failed', data.message || "Failed to submit review");
       }
     } catch (err) {
-      alert("Error submitting review");
+      showError('Error', 'Error submitting review');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -293,10 +311,10 @@ function ItemsPage() {
               {user?.role !== "customer" && (
                 <button
                   onClick={() => { setShowModal(true); setIsEditMode(false); }}
-                  className="btn-premium-primary px-5 py-2.5"
+                  className="btn-premium-primary flex items-center gap-2 px-5 py-2.5 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-premium-amber-500/20"
                 >
-                  <PlusCircle size={18} />
-                  Add New Item
+                  <Plus size={16} />
+                  <span>Add New Item</span>
                 </button>
               )}
             </div>

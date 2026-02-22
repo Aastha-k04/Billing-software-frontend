@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Users, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Shield, Trash2, UserPlus, X, Search, MoreVertical, ShieldCheck, Mail, Calendar, ArrowRight } from "lucide-react";
+import { showSuccess, showError, showConfirm, showWarning } from '../utils/sweetalert';
 
 function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
+
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -49,11 +50,11 @@ function UserManagement() {
         );
         setUsers(relevantUsers);
       } else {
-        setMessage({ type: "error", text: "Failed to synchronize user database" });
+        showError('Sync Failed', 'Failed to synchronize user database with central matrix');
       }
     } catch (error) {
       console.error("Fetch users error:", error);
-      setMessage({ type: "error", text: "Matrix connectivity failure. Retrying..." });
+      showError('Connectivity Error', 'Matrix connectivity failure. Unauthorized nodes detected.');
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,7 @@ function UserManagement() {
     setSelectedUser(user);
     setPasswordForm({ newPassword: "", confirmPassword: "" });
     setShowPasswordModal(true);
-    setMessage({ type: "", text: "" });
+
   };
 
   const closePasswordModal = () => {
@@ -84,17 +85,17 @@ function UserManagement() {
   // Handle password change
   const handleChangePassword = async () => {
     if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setMessage({ type: "error", text: "Protocol requires all fields to be populated" });
+      showWarning('Required Fields', "Protocol requires all fields to be populated");
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      setMessage({ type: "error", text: "Credential entropy insufficient (min 6 chars)" });
+      showWarning('Insufficient Entropy', "Credential entropy insufficient (min 6 chars)");
       return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setMessage({ type: "error", text: "Credential mismatch detected" });
+      showError('Mismatch Detected', "Credential mismatch detected");
       return;
     }
 
@@ -114,16 +115,16 @@ function UserManagement() {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        setMessage({ type: "success", text: "Security credentials updated successfully" });
+        showSuccess('Key Updated', 'Security credentials updated successfully');
         setTimeout(() => {
           closePasswordModal();
         }, 1500);
       } else {
-        setMessage({ type: "error", text: data.message || "Credential update rejected" });
+        showError('Update Rejected', data.message || "Credential update rejected by security protocol");
       }
     } catch (error) {
       console.error("Password change error:", error);
-      setMessage({ type: "error", text: "Security bypass prevented. Network error." });
+      showError('Bypass Prevented', 'Security bypass prevented. Network collision data lost.');
     } finally {
       setLoading(false);
     }
@@ -132,17 +133,17 @@ function UserManagement() {
   // Handle add user
   const handleAddUser = async () => {
     if (!addUserForm.username || !addUserForm.password || !addUserForm.confirmPassword) {
-      setMessage({ type: "error", text: "Provisioning requires complete identity data" });
+      showWarning('Incomplete Data', "Provisioning requires complete identity data");
       return;
     }
 
     if (addUserForm.password.length < 6) {
-      setMessage({ type: "error", text: "Initial credential entropy insufficient" });
+      showWarning('Insufficient Entropy', "Initial credential entropy insufficient (min 6 chars)");
       return;
     }
 
     if (addUserForm.password !== addUserForm.confirmPassword) {
-      setMessage({ type: "error", text: "Initial credential mismatch" });
+      showError('Mismatch Detected', "Initial credential mismatch detected");
       return;
     }
 
@@ -163,18 +164,18 @@ function UserManagement() {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        setMessage({ type: "success", text: "New identity successfully provisioned" });
+        showSuccess('Identity Provisioned', 'New identity successfully registered in the system');
         fetchUsers();
         setTimeout(() => {
           setShowAddUserModal(false);
           setAddUserForm({ username: "", password: "", confirmPassword: "", role: "sales" });
         }, 1500);
       } else {
-        setMessage({ type: "error", text: data.message || "Provisioning rejected by protocol" });
+        showError('Provisioning Denied', data.message || "Identity registration rejected by central protocol");
       }
     } catch (error) {
       console.error("Add user error:", error);
-      setMessage({ type: "error", text: "Identity creation failure. Network collision." });
+      showError('Creation Failure', 'Identity creation failure. Network collision detected.');
     } finally {
       setLoading(false);
     }
@@ -182,7 +183,13 @@ function UserManagement() {
 
   // Handle delete user
   const handleDeleteUser = async (userId: any) => {
-    if (!window.confirm("Permanently de-authorize this identity? Archiving is irreversible.")) return;
+    const result = await showConfirm(
+      "De-authorize Identity?",
+      "Permanently de-authorize this identity? Archiving is irreversible.",
+      "Purge Identity"
+    );
+
+    if (!result.isConfirmed) return;
 
     setLoading(true);
     try {
@@ -195,14 +202,14 @@ function UserManagement() {
 
       const data = await response.json();
       if (response.ok && data.success) {
-        setMessage({ type: "success", text: "Identity successfully purged from database" });
+        showSuccess('Identity Purged', 'Identity successfully purged from central database');
         fetchUsers();
       } else {
-        setMessage({ type: "error", text: data.message || "Purge operation denied" });
+        showError('Purge Denied', data.message || "Purge operation denied by system guard");
       }
     } catch (error) {
       console.error("Delete user error:", error);
-      setMessage({ type: "error", text: "Integrity protection active. Purge failed." });
+      showError('Integrity Lock', 'Integrity protection active. Purge sequence failed.');
     } finally {
       setLoading(false);
     }
@@ -247,7 +254,6 @@ function UserManagement() {
               <button
                 onClick={() => {
                   setShowAddUserModal(true);
-                  setMessage({ type: "", text: "" });
                 }}
                 className="bg-gradient-to-r from-amber-600 to-orange-800 hover:from-amber-500 hover:to-orange-700 text-white px-6 py-3.5 rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-950/20 flex items-center gap-3 transform hover:scale-[1.02] active:scale-[0.98]"
               >
@@ -258,24 +264,7 @@ function UserManagement() {
           </div>
         </div>
 
-        {/* Global Notifications */}
-        {message.text && !showPasswordModal && !showAddUserModal && (
-          <div className={`p-5 rounded-2xl flex items-center gap-4 animate-in slide-in-from-top-4 backdrop-blur-sm border shadow-xl ${message.type === "success"
-            ? "bg-emerald-900/10 border-emerald-500/30 text-emerald-200"
-            : "bg-red-900/10 border-red-500/30 text-red-200"
-            }`}>
-            <div className={`p-2 rounded-xl ${message.type === "success" ? "bg-emerald-500/20" : "bg-red-500/20"}`}>
-              {message.type === "success" ? (
-                <CheckCircle size={22} className="text-emerald-500" />
-              ) : (
-                <AlertCircle size={22} className="text-red-500" />
-              )}
-            </div>
-            <p className="font-bold text-sm tracking-wide">
-              {message.text}
-            </p>
-          </div>
-        )}
+
 
         {/* Identity Matrix (Table) */}
         <div className="premium-card rounded-[2.5rem] bg-[#0a0a0a]/50 border border-zinc-800/50 shadow-2xl overflow-hidden backdrop-blur-sm">
@@ -401,15 +390,7 @@ function UserManagement() {
               </div>
             </div>
 
-            {message.text && (
-              <div className={`mb-8 p-4 rounded-xl flex items-center gap-3 animate-in zoom-in-95 border ${message.type === "success"
-                ? "bg-emerald-900/10 border-emerald-500/30 text-emerald-500"
-                : "bg-red-900/10 border-red-500/30 text-red-500"
-                }`}>
-                {message.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-                <p className="text-xs font-bold tracking-wide uppercase">{message.text}</p>
-              </div>
-            )}
+
 
             <div className="space-y-6">
               <div className="space-y-2">
@@ -495,7 +476,6 @@ function UserManagement() {
                 onClick={() => {
                   setShowAddUserModal(false);
                   setAddUserForm({ username: "", password: "", confirmPassword: "", role: "sales" });
-                  setMessage({ type: "", text: "" });
                 }}
                 className="w-12 h-12 rounded-2xl bg-zinc-900/50 text-zinc-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center border border-zinc-800"
               >
@@ -503,15 +483,7 @@ function UserManagement() {
               </button>
             </div>
 
-            {message.text && (
-              <div className={`mb-8 p-4 rounded-xl flex items-center gap-3 animate-in zoom-in-95 border ${message.type === "success"
-                ? "bg-emerald-900/10 border-emerald-500/30 text-emerald-500"
-                : "bg-red-900/10 border-red-500/30 text-red-500"
-                }`}>
-                {message.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-                <p className="text-xs font-bold tracking-wide uppercase">{message.text}</p>
-              </div>
-            )}
+
 
             <div className="space-y-6">
               <div className="space-y-2">
@@ -555,7 +527,6 @@ function UserManagement() {
                   onClick={() => {
                     setShowAddUserModal(false);
                     setAddUserForm({ username: "", password: "", confirmPassword: "", role: "sales" });
-                    setMessage({ type: "", text: "" });
                   }}
                   disabled={loading}
                   className="flex-1 px-6 py-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-white hover:bg-zinc-800/50 border border-zinc-800/80 rounded-[1.25rem] transition-all"

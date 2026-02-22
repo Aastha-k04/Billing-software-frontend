@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Upload, PlusCircle, Trash2 } from "lucide-react";
+import { showSuccess, showError, showWarning } from '../utils/sweetalert';
 let userString = localStorage.getItem("user");
 let user = typeof userString === 'string' ? JSON.parse(userString) : null;
 const API_URL = `${process.env.REACT_APP_API_BASE_URL}/api/items?userId=${user?.id}`; // ✅ backend endpoint
@@ -50,7 +51,7 @@ export default function AddSearchItem() {
   // ➕ Add new item (multipart/form-data)
   const handleAddItem = async () => {
     if (!form.name || !form.description || !form.nrp || !form.mrp) {
-      alert("Please fill all fields");
+      showWarning('Incomplete Data', 'Provisioning requires all mandatory fields to be populated.');
       return;
     }
 
@@ -74,15 +75,15 @@ export default function AddSearchItem() {
 
       if (res.ok) {
         setItems((prev) => [...prev, data.item]);
-        alert("Item added successfully!");
+        showSuccess('Item Registered', 'New catalog entry successfully synchronized.');
         setForm({ name: "", description: "", nrp: "", mrp: "", image: null });
         setPreview(null);
       } else {
-        alert(data.message || "Failed to add item.");
+        showError('Registration Rejected', data.message || "Central protocol denied item registration.");
       }
     } catch (error) {
       console.error("Error adding item:", error);
-      alert("Error adding item. Check console for details.");
+      showError('Matrix Overflow', 'Resource collision detected. Error adding item to matrix.');
     }
   };
 
@@ -92,8 +93,9 @@ export default function AddSearchItem() {
       const res = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
       if (res.ok) {
         setItems((prev) => prev.filter((item) => item._id !== id));
+        showSuccess('Resource Purged', 'Item successfully removed from catalog.');
       } else {
-        alert("Failed to delete item.");
+        showError('Purge Denied', 'Central authority denied resource deletion.');
       }
     } catch (err) {
       console.error("Error deleting item:", err);
